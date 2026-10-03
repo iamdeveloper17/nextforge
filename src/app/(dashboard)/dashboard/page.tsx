@@ -1,22 +1,37 @@
 import { auth } from "@/lib/auth";
-import { redirect } from "next/navigation";
 
 export default async function DashboardPage() {
   const session = await auth();
 
-  if (!session) {
-    redirect("/login");
-  }
-
   return (
-    <main className="container mx-auto p-8">
-      <h1 className="mb-4 text-3xl font-bold">Dashboard</h1>
-      <p className="text-muted-foreground">
-        Welcome, {session.user?.name || session.user?.email}!
-      </p>
-      <pre className="mt-4 rounded-lg bg-muted p-4 text-sm">
-        {JSON.stringify(session, null, 2)}
-      </pre>
-    </main>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold">Dashboard</h1>
+        <p className="text-muted-foreground">
+          Welcome back, {session?.user?.name ?? "User"}!
+        </p>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <div className="rounded-lg border p-6">
+          <h3 className="text-sm font-medium text-muted-foreground">
+            Total Users
+          </h3>
+          <p className="mt-2 text-3xl font-bold">1</p>
+        </div>
+        <div className="rounded-lg border p-6">
+          <h3 className="text-sm font-medium text-muted-foreground">
+            AI Requests
+          </h3>
+          <p className="mt-2 text-3xl font-bold">0</p>
+        </div>
+        <div className="rounded-lg border p-6">
+          <h3 className="text-sm font-medium text-muted-foreground">
+            Subscription
+          </h3>
+          <p className="mt-2 text-3xl font-bold">Free</p>
+        </div>
+      </div>
+    </div>
   );
 }

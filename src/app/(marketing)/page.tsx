@@ -3,8 +3,8 @@ import { Button } from "@/components/ui/button";
 
 export default function HomePage() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center px-4">
-      <div className="mx-auto max-w-3xl text-center">
+    <section className="container flex flex-col items-center justify-center py-24 text-center md:py-32">
+      <div className="mx-auto max-w-3xl">
         <span className="mb-6 inline-block rounded-full border px-3 py-1 text-xs font-medium">
           🚀 Open Source · MIT License
         </span>
@@ -17,8 +17,8 @@ export default function HomePage() {
         </h1>
 
         <p className="mb-8 text-lg text-muted-foreground">
-          NextForge is a production-ready starter kit with auth, payments,
-          AI streaming, and a dashboard — so you focus on your product, not
+          NextForge is a production-ready starter kit with auth, payments, AI
+          streaming, and a dashboard — so you focus on your product, not
           infrastructure.
         </p>
 
@@ -28,7 +28,7 @@ export default function HomePage() {
           </Button>
           <Button size="lg" variant="outline" asChild>
             <Link
-              href="https://github.com/YOUR_USERNAME/nextforge"
+              href="https://github.com/iamdeveloper17/nextforge"
               target="_blank"
             >
               ⭐ Star on GitHub
@@ -36,6 +36,6 @@ export default function HomePage() {
           </Button>
         </div>
       </div>
-    </main>
+    </section>
   );
 }

@@ -9,13 +9,13 @@ import {
 } from "@/components/ui/card";
 import Link from "next/link";
 
-export default function LoginPage() {
+export default function RegisterPage() {
   return (
     <Card className="w-full max-w-md">
       <CardHeader className="space-y-2 text-center">
-        <CardTitle className="text-2xl font-bold">Welcome back</CardTitle>
+        <CardTitle className="text-2xl font-bold">Create an account</CardTitle>
         <CardDescription>
-          Sign in to your NextForge account to continue
+          Get started with NextForge in seconds
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -40,22 +40,13 @@ export default function LoginPage() {
           </Button>
         </form>
 
-        <div className="relative">
-          <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t" />
-          </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-card px-2 text-muted-foreground">or</span>
-          </div>
-        </div>
-
         <div className="text-center text-sm text-muted-foreground">
-          Don&apos;t have an account?{" "}
+          Already have an account?{" "}
           <Link
-            href="/register"
+            href="/login"
             className="font-medium text-foreground underline-offset-4 hover:underline"
           >
-            Sign up
+            Sign in
           </Link>
         </div>
 
