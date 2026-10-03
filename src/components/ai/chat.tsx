@@ -4,12 +4,19 @@ import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { useEffect, useRef, useState } from "react";
 import { ArrowUp, Loader2, Sparkles } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Message } from "@/components/ai/message";
 
 interface ChatProps {
   userName?: string | null;
   userImage?: string | null;
+  chatId?: string | null;
+  initialMessages?: Array<{
+    id: string;
+    role: "user" | "assistant";
+    parts: Array<{ type: "text"; text: string }>;
+  }>;
 }
 
 const suggestions = [
@@ -19,14 +26,38 @@ const suggestions = [
   "How does Stripe webhook work?",
 ];
 
-export function Chat({ userName, userImage }: ChatProps) {
+export function Chat({
+  userName,
+  userImage,
+  chatId: initialChatId,
+  initialMessages = [],
+}: ChatProps) {
   const [input, setInput] = useState("");
-  const { messages, sendMessage, status } = useChat({
-    transport: new DefaultChatTransport({ api: "/api/ai/chat" }),
+  const [chatId, setChatId] = useState<string | null>(initialChatId ?? null);
+  const router = useRouter();
+
+  const hookId = initialChatId ?? "new-chat";
+
+const { messages, sendMessage, status, setMessages } = useChat({
+    id: hookId,
+    transport: new DefaultChatTransport({
+      api: "/api/ai/chat",
+      prepareSendMessagesRequest: ({ messages: msgs, body }) => ({
+        body: { ...body, messages: msgs, chatId },
+      }),
+    }),
   });
+
   const isLoading = status === "streaming" || status === "submitted";
   const scrollRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // 👈 Reset messages when initialChatId changes (server-side navigation)
+// Reset messages when chat changes — only depend on chatId
+useEffect(() => {
+  setMessages(initialMessages as never);
+  setChatId(initialChatId ?? null);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [initialChatId]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({
@@ -34,6 +65,13 @@ export function Chat({ userName, userImage }: ChatProps) {
       behavior: "smooth",
     });
   }, [messages]);
+
+  // Refresh sidebar after new chat is created
+  useEffect(() => {
+    if (chatId && chatId !== initialChatId) {
+      router.refresh();
+    }
+  }, [chatId, initialChatId, router]);
 
   const handleSend = (text: string) => {
     const t = text.trim();
@@ -43,8 +81,7 @@ export function Chat({ userName, userImage }: ChatProps) {
   };
 
   return (
-    <div className="flex h-[calc(100vh-8rem)] flex-col rounded-lg border bg-card">
-      {/* Header */}
+    <div className="flex h-full flex-col bg-card">
       <div className="flex items-center gap-2 border-b px-4 py-3">
         <div className="rounded-md bg-primary/10 p-1.5">
           <Sparkles className="h-4 w-4 text-primary" />
@@ -55,7 +92,6 @@ export function Chat({ userName, userImage }: ChatProps) {
         </div>
       </div>
 
-      {/* Messages */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-4">
         {messages.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-6 text-center">
@@ -106,7 +142,6 @@ export function Chat({ userName, userImage }: ChatProps) {
         )}
       </div>
 
-      {/* Input */}
       <div className="border-t p-4">
         <form
           onSubmit={(e) => {
@@ -116,7 +151,6 @@ export function Chat({ userName, userImage }: ChatProps) {
           className="mx-auto flex max-w-3xl items-end gap-2"
         >
           <textarea
-            ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
@@ -125,7 +159,7 @@ export function Chat({ userName, userImage }: ChatProps) {
                 handleSend(input);
               }
             }}
-            placeholder="Send a message... (Enter to send, Shift+Enter for new line)"
+            placeholder="Send a message..."
             rows={1}
             className="flex-1 resize-none rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
             style={{ maxHeight: "200px" }}
