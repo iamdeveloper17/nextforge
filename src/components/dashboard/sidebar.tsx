@@ -7,11 +7,13 @@ import {
   Settings,
   CreditCard,
   Sparkles,
+  MessageSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const items = [
   { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { title: "AI Chat", href: "/chat", icon: MessageSquare },  // 👈 add
   { title: "Settings", href: "/settings", icon: Settings },
   { title: "Billing", href: "/billing", icon: CreditCard },
 ];
