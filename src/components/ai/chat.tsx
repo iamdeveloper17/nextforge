@@ -41,18 +41,20 @@ export function Chat({
       prepareSendMessagesRequest: ({ messages: msgs, body }) => ({
         body: { ...body, messages: msgs, chatId },
       }),
+      // Custom fetch to capture X-Chat-Id header
+      fetch: async (input, init) => {
+        const response = await fetch(input, init);
+        const newChatId = response.headers.get("X-Chat-Id");
+        if (newChatId && newChatId !== chatId) {
+          setChatId(newChatId);
+          window.history.replaceState(null, "", `/chat/${newChatId}`);
+          window.dispatchEvent(
+            new CustomEvent("chat-created", { detail: newChatId })
+          );
+        }
+        return response;
+      },
     }),
-onResponse: (response) => {
-  const newChatId = response.headers.get("X-Chat-Id");
-  if (newChatId && newChatId !== chatId) {
-    setChatId(newChatId);
-    // Use router.replace so usePathname updates
-    window.history.replaceState(null, "", `/chat/${newChatId}`);
-    window.dispatchEvent(
-      new CustomEvent("chat-created", { detail: newChatId })
-    );
-  }
-},
   });
 
   const isLoading = status === "streaming" || status === "submitted";
@@ -65,7 +67,7 @@ onResponse: (response) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialChatId]);
 
-  // Listen for "new-chat-requested" event (fired by sidebar when user clicks New Chat while on /chat)
+  // Listen for "new-chat-requested" event
   useEffect(() => {
     const handler = () => {
       setMessages([] as never);
@@ -78,21 +80,13 @@ onResponse: (response) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Auto-scroll to bottom on new messages
-// Auto-scroll to bottom on new messages
-useEffect(() => {
-  scrollRef.current?.scrollTo({
-    top: scrollRef.current.scrollHeight,
-    behavior: "smooth",
-  });
-}, [messages]);
-
-// Refresh sidebar when streaming completes (to update titles & order)
-useEffect(() => {
-  if (status === "ready" && messages.length > 0) {
-    window.dispatchEvent(new CustomEvent("chat-created", { detail: chatId ?? "" }));
-  }
-}, [status, messages.length, chatId]);
+  // Auto-scroll
+  useEffect(() => {
+    scrollRef.current?.scrollTo({
+      top: scrollRef.current.scrollHeight,
+      behavior: "smooth",
+    });
+  }, [messages]);
 
   const handleSend = (text: string) => {
     const t = text.trim();
