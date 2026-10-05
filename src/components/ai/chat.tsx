@@ -4,7 +4,6 @@ import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { useEffect, useRef, useState } from "react";
 import { ArrowUp, Loader2, Sparkles } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Message } from "@/components/ai/message";
 
@@ -34,44 +33,66 @@ export function Chat({
 }: ChatProps) {
   const [input, setInput] = useState("");
   const [chatId, setChatId] = useState<string | null>(initialChatId ?? null);
-  const router = useRouter();
 
-  const hookId = initialChatId ?? "new-chat";
-
-const { messages, sendMessage, status, setMessages } = useChat({
-    id: hookId,
+  const { messages, sendMessage, status, setMessages } = useChat({
+    id: initialChatId ?? "new-chat",
     transport: new DefaultChatTransport({
       api: "/api/ai/chat",
       prepareSendMessagesRequest: ({ messages: msgs, body }) => ({
         body: { ...body, messages: msgs, chatId },
       }),
     }),
+onResponse: (response) => {
+  const newChatId = response.headers.get("X-Chat-Id");
+  if (newChatId && newChatId !== chatId) {
+    setChatId(newChatId);
+    // Use router.replace so usePathname updates
+    window.history.replaceState(null, "", `/chat/${newChatId}`);
+    window.dispatchEvent(
+      new CustomEvent("chat-created", { detail: newChatId })
+    );
+  }
+},
   });
 
   const isLoading = status === "streaming" || status === "submitted";
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // 👈 Reset messages when initialChatId changes (server-side navigation)
-// Reset messages when chat changes — only depend on chatId
+  // Reset when server-side chat changes
+  useEffect(() => {
+    setMessages(initialMessages as never);
+    setChatId(initialChatId ?? null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialChatId]);
+
+  // Listen for "new-chat-requested" event (fired by sidebar when user clicks New Chat while on /chat)
+  useEffect(() => {
+    const handler = () => {
+      setMessages([] as never);
+      setChatId(null);
+      setInput("");
+      window.history.replaceState(null, "", "/chat");
+    };
+    window.addEventListener("new-chat-requested", handler);
+    return () => window.removeEventListener("new-chat-requested", handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Auto-scroll to bottom on new messages
+// Auto-scroll to bottom on new messages
 useEffect(() => {
-  setMessages(initialMessages as never);
-  setChatId(initialChatId ?? null);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [initialChatId]);
+  scrollRef.current?.scrollTo({
+    top: scrollRef.current.scrollHeight,
+    behavior: "smooth",
+  });
+}, [messages]);
 
-  useEffect(() => {
-    scrollRef.current?.scrollTo({
-      top: scrollRef.current.scrollHeight,
-      behavior: "smooth",
-    });
-  }, [messages]);
-
-  // Refresh sidebar after new chat is created
-  useEffect(() => {
-    if (chatId && chatId !== initialChatId) {
-      router.refresh();
-    }
-  }, [chatId, initialChatId, router]);
+// Refresh sidebar when streaming completes (to update titles & order)
+useEffect(() => {
+  if (status === "ready" && messages.length > 0) {
+    window.dispatchEvent(new CustomEvent("chat-created", { detail: chatId ?? "" }));
+  }
+}, [status, messages.length, chatId]);
 
   const handleSend = (text: string) => {
     const t = text.trim();

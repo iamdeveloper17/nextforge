@@ -6,100 +6,110 @@ import { db } from "@/lib/db";
 export const maxDuration = 30;
 
 export async function POST(req: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return new Response("Unauthorized", { status: 401 });
-  }
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return new Response("Unauthorized", { status: 401 });
+    }
 
-  const body = await req.json();
-  const messages: UIMessage[] = body.messages ?? [];
-  let chatId: string | undefined = body.chatId;
+    const body = await req.json();
+    const messages: UIMessage[] = body.messages ?? [];
+    let chatId: string | undefined = body.chatId;
 
-  if (!Array.isArray(messages) || messages.length === 0) {
-    return new Response("No messages provided", { status: 400 });
-  }
+    if (!Array.isArray(messages) || messages.length === 0) {
+      return new Response("No messages provided", { status: 400 });
+    }
 
-  // Get last user message TEXT
-  const lastUserMessage = messages[messages.length - 1];
-  const lastUserText =
-    lastUserMessage?.role === "user"
-      ? lastUserMessage.parts
+    // Get last user message text
+    const lastUserMessage = messages[messages.length - 1];
+    const lastUserText =
+      lastUserMessage?.role === "user"
+        ? lastUserMessage.parts
+            .filter((p) => p.type === "text")
+            .map((p) => (p as { type: "text"; text: string }).text)
+            .join(" ")
+            .trim()
+        : "";
+
+    // Reject empty message — prevents blank chats
+    if (!lastUserText) {
+      return new Response("Empty message", { status: 400 });
+    }
+
+    // Create or verify chat
+    if (!chatId) {
+      const firstUserMessage = messages.find((m) => m.role === "user");
+      const firstText =
+        firstUserMessage?.parts
           .filter((p) => p.type === "text")
           .map((p) => (p as { type: "text"; text: string }).text)
           .join(" ")
-          .trim()
-      : "";
+          .trim() || "New Chat";
 
-  // Reject empty message
-  if (!lastUserText) {
-    return new Response("Empty message", { status: 400 });
-  }
+      const title =
+        firstText.length > 50 ? firstText.slice(0, 50) + "..." : firstText;
 
-  // Create chat if it doesn't exist
-  if (!chatId) {
-    const firstUserMessage = messages.find((m) => m.role === "user");
-    const firstText =
-      firstUserMessage?.parts
-        .filter((p) => p.type === "text")
-        .map((p) => (p as { type: "text"; text: string }).text)
-        .join(" ")
-        .trim() ?? "New Chat";
+      const newChat = await db.chat.create({
+        data: {
+          userId: session.user.id,
+          title,
+        },
+      });
+      chatId = newChat.id;
+    } else {
+      const chat = await db.chat.findFirst({
+        where: { id: chatId, userId: session.user.id },
+      });
+      if (!chat) {
+        return new Response("Chat not found", { status: 404 });
+      }
+    }
 
-    const title =
-      firstText.length > 50 ? firstText.slice(0, 50) + "..." : firstText;
-
-    const newChat = await db.chat.create({
+    // Save user message
+    await db.message.create({
       data: {
-        userId: session.user.id,
-        title,
+        chatId,
+        role: "user",
+        content: lastUserText,
       },
     });
-    chatId = newChat.id;
-  } else {
-    const chat = await db.chat.findFirst({
-      where: { id: chatId, userId: session.user.id },
+
+    const activeChatId = chatId;
+
+    // Stream AI response
+    const result = streamText({
+      model: groqModel,
+      system:
+        "You are NextForge AI, a helpful assistant. Be concise, accurate, and friendly.",
+      messages: await convertToModelMessages(messages),
+      onFinish: async ({ text }) => {
+        try {
+          if (text?.trim()) {
+            await db.message.create({
+              data: {
+                chatId: activeChatId,
+                role: "assistant",
+                content: text,
+              },
+            });
+          }
+          await db.chat.update({
+            where: { id: activeChatId },
+            data: { updatedAt: new Date() },
+          });
+        } catch (err) {
+          console.error("Failed to save assistant message:", err);
+        }
+      },
     });
-    if (!chat) {
-      return new Response("Chat not found", { status: 404 });
-    }
+
+    return result.toUIMessageStreamResponse({
+      headers: {
+        "X-Chat-Id": activeChatId ?? "",
+      },
+    });
+  } catch (error) {
+    console.error("Chat API error:", error);
+    return new Response("Internal server error", { status: 500 });
   }
-
-  // Save user message (with content check)
-  await db.message.create({
-    data: {
-      chatId,
-      role: "user",
-      content: lastUserText,
-    },
-  });
-
-  const activeChatId = chatId;
-
-  const result = streamText({
-    model: groqModel,
-    system:
-      "You are NextForge AI, a helpful assistant. Be concise, accurate, and friendly.",
-    messages: await convertToModelMessages(messages),
-    onFinish: async ({ text }) => {
-      if (text?.trim()) {
-        await db.message.create({
-          data: {
-            chatId: activeChatId,
-            role: "assistant",
-            content: text,
-          },
-        });
-      }
-      await db.chat.update({
-        where: { id: activeChatId },
-        data: { updatedAt: new Date() },
-      });
-    },
-  });
-
-return result.toUIMessageStreamResponse({
-  headers: {
-    "X-Chat-Id": activeChatId ?? "",
-  },
-});
 }

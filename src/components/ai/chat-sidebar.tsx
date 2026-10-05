@@ -3,7 +3,15 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { MessageSquare, Plus, Trash2, Loader2, CheckSquare, Square, X } from "lucide-react";
+import {
+  MessageSquare,
+  Plus,
+  Trash2,
+  Loader2,
+  CheckSquare,
+  Square,
+  X,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -28,36 +36,70 @@ export function ChatSidebar() {
   const [loading, setLoading] = useState(true);
   const [selectionMode, setSelectionMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; ids: string[] }>({
-    open: false,
-    ids: [],
-  });
+  const [deleteDialog, setDeleteDialog] = useState<{
+    open: boolean;
+    ids: string[];
+  }>({ open: false, ids: [] });
   const [deleting, setDeleting] = useState(false);
+  const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const pathname = usePathname();
   const router = useRouter();
 
-  useEffect(() => {
-    let mounted = true;
-    const load = async () => {
-      try {
-        const res = await fetch("/api/chats");
-        if (res.ok && mounted) {
-          const data = await res.json();
-          setChats(data);
-        }
-      } finally {
-        if (mounted) setLoading(false);
+  const loadChats = async () => {
+    try {
+      const res = await fetch("/api/chats");
+      if (res.ok) {
+        const data = await res.json();
+        setChats(data);
       }
-    };
-    load();
-    return () => {
-      mounted = false;
-    };
+    } catch (err) {
+      console.error("Failed to load chats:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Sync active chat from pathname
+// Initialize activeChatId from pathname on first load
+useEffect(() => {
+  const match = pathname.match(/\/chat\/([^/]+)/);
+  if (match) {
+    setActiveChatId(match[1]);
+  }
+}, []);
+// eslint-disable-next-line react-hooks/exhaustive-deps
+
+  // Load chats on mount + pathname change
+  useEffect(() => {
+    loadChats();
   }, [pathname]);
 
-  const handleNewChat = () => {
+  // Listen for chat-created event
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const customEvent = e as CustomEvent<string>;
+      if (customEvent.detail) {
+        setActiveChatId(customEvent.detail);
+      }
+      loadChats();
+    };
+    window.addEventListener("chat-created", handler as EventListener);
+    return () =>
+      window.removeEventListener("chat-created", handler as EventListener);
+  }, []);
+
+const handleNewChat = () => {
+  // Refresh sidebar list first (so latest chats appear)
+  loadChats();
+
+  if (pathname === "/chat") {
+    // Already on /chat — reset current chat view
+    window.dispatchEvent(new CustomEvent("new-chat-requested"));
+  } else {
+    // Client-side navigation to /chat
     router.push("/chat");
-  };
+  }
+};
 
   const toggleSelect = (id: string) => {
     setSelected((prev) => {
@@ -107,8 +149,7 @@ export function ChatSidebar() {
   return (
     <>
       <div className="flex h-full w-64 flex-col border-r bg-muted/30">
-        {/* Header */}
-        <div className="border-b p-3 space-y-2">
+        <div className="space-y-2 border-b p-3">
           {!selectionMode ? (
             <>
               <Button
@@ -152,7 +193,9 @@ export function ChatSidebar() {
                   size="sm"
                   className="flex-1 text-xs"
                 >
-                  {selected.size === chats.length ? "Deselect all" : "Select all"}
+                  {selected.size === chats.length
+                    ? "Deselect all"
+                    : "Select all"}
                 </Button>
                 <Button
                   onClick={() => askDelete(Array.from(selected))}
@@ -169,7 +212,6 @@ export function ChatSidebar() {
           )}
         </div>
 
-        {/* Chats list */}
         <div className="flex-1 overflow-y-auto p-2">
           {loading ? (
             <div className="flex items-center justify-center p-4">
@@ -182,7 +224,7 @@ export function ChatSidebar() {
           ) : (
             <div className="space-y-1">
               {chats.map((chat) => {
-                const isActive = pathname === `/chat/${chat.id}`;
+                const isActive = activeChatId === chat.id;
                 const isSelected = selected.has(chat.id);
 
                 if (selectionMode) {
@@ -219,10 +261,11 @@ export function ChatSidebar() {
                         : "text-muted-foreground hover:bg-muted hover:text-foreground"
                     )}
                   >
-                    <Link
-                      href={`/chat/${chat.id}`}
-                      className="flex flex-1 items-center gap-2 truncate px-2 py-2 text-sm"
-                    >
+                  <Link
+  href={`/chat/${chat.id}`}
+  onClick={() => setActiveChatId(chat.id)}
+  className="flex flex-1 items-center gap-2 truncate px-2 py-2 text-sm"
+>
                       <MessageSquare className="h-3.5 w-3.5 shrink-0" />
                       <span className="flex-1 truncate text-left">
                         {chat.title}
@@ -236,7 +279,8 @@ export function ChatSidebar() {
                       }}
                       className={cn(
                         "mr-1 rounded p-1 opacity-0 transition-opacity group-hover:opacity-100",
-                        isActive && "text-primary-foreground hover:bg-primary/20"
+                        isActive &&
+                          "text-primary-foreground hover:bg-primary/20"
                       )}
                       aria-label="Delete chat"
                     >
@@ -250,7 +294,6 @@ export function ChatSidebar() {
         </div>
       </div>
 
-      {/* Delete confirmation dialog */}
       <AlertDialog
         open={deleteDialog.open}
         onOpenChange={(open) =>
