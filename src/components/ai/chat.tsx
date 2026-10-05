@@ -108,14 +108,14 @@ export function Chat({
       <div className="flex items-center justify-between gap-2 border-b px-4 py-3">
         <div className="flex items-center gap-2">
           {/* Mobile: hamburger to open chat history */}
-{/* Mobile: chat history button */}
-<button
-  onClick={handleToggleSidebar}
-  className="rounded-md p-1.5 hover:bg-muted md:hidden"
-  aria-label="Open chat history"
->
-  <History className="h-5 w-5" />
-</button>
+          {/* Mobile: chat history button */}
+          <button
+            onClick={handleToggleSidebar}
+            className="rounded-md p-1.5 hover:bg-muted md:hidden"
+            aria-label="Open chat history"
+          >
+            <History className="h-5 w-5" />
+          </button>
           <div className="rounded-md bg-primary/10 p-1.5">
             <Sparkles className="h-4 w-4 text-primary" />
           </div>
