@@ -3,7 +3,7 @@
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { useEffect, useRef, useState } from "react";
-import { ArrowUp, Loader2, Sparkles } from "lucide-react";
+import { ArrowUp, Loader2, Sparkles, Plus, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Message } from "@/components/ai/message";
 
@@ -41,7 +41,6 @@ export function Chat({
       prepareSendMessagesRequest: ({ messages: msgs, body }) => ({
         body: { ...body, messages: msgs, chatId },
       }),
-      // Custom fetch to capture X-Chat-Id header
       fetch: async (input, init) => {
         const response = await fetch(input, init);
         const newChatId = response.headers.get("X-Chat-Id");
@@ -67,7 +66,7 @@ export function Chat({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialChatId]);
 
-  // Listen for "new-chat-requested" event
+  // Listen for "new-chat-requested" event (from sidebar New Chat)
   useEffect(() => {
     const handler = () => {
       setMessages([] as never);
@@ -80,7 +79,7 @@ export function Chat({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Auto-scroll
+  // Auto-scroll on new messages
   useEffect(() => {
     scrollRef.current?.scrollTo({
       top: scrollRef.current.scrollHeight,
@@ -95,18 +94,49 @@ export function Chat({
     setInput("");
   };
 
+  const handleNewChatMobile = () => {
+    window.dispatchEvent(new CustomEvent("new-chat-requested"));
+  };
+
+  const handleToggleSidebar = () => {
+    window.dispatchEvent(new CustomEvent("toggle-chat-sidebar"));
+  };
+
   return (
     <div className="flex h-full flex-col bg-card">
-      <div className="flex items-center gap-2 border-b px-4 py-3">
-        <div className="rounded-md bg-primary/10 p-1.5">
-          <Sparkles className="h-4 w-4 text-primary" />
+      {/* Header */}
+      <div className="flex items-center justify-between gap-2 border-b px-4 py-3">
+        <div className="flex items-center gap-2">
+          {/* Mobile: hamburger to open chat history */}
+{/* Mobile: chat history button */}
+<button
+  onClick={handleToggleSidebar}
+  className="rounded-md p-1.5 hover:bg-muted md:hidden"
+  aria-label="Open chat history"
+>
+  <History className="h-5 w-5" />
+</button>
+          <div className="rounded-md bg-primary/10 p-1.5">
+            <Sparkles className="h-4 w-4 text-primary" />
+          </div>
+          <div>
+            <p className="text-sm font-medium">NextForge AI</p>
+            <p className="text-xs text-muted-foreground">Powered by Groq</p>
+          </div>
         </div>
-        <div>
-          <p className="text-sm font-medium">NextForge AI</p>
-          <p className="text-xs text-muted-foreground">Powered by Groq</p>
-        </div>
+        {/* Mobile: New Chat button */}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleNewChatMobile}
+          className="md:hidden"
+        >
+          <Plus className="mr-1 h-4 w-4" />
+          New
+        </Button>
       </div>
 
+      {/* Messages */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-4">
         {messages.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-6 text-center">
@@ -157,6 +187,7 @@ export function Chat({
         )}
       </div>
 
+      {/* Input */}
       <div className="border-t p-4">
         <form
           onSubmit={(e) => {
