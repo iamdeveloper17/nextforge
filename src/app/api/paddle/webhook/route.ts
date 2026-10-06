@@ -72,8 +72,29 @@ export async function POST(req: Request) {
                 break;
             }
 
-            case "transaction.completed": {
-                console.log("Transaction completed:", data.id as string);
+            case "transaction.created":
+            case "transaction.completed":
+            case "transaction.updated": {
+                console.log("Transaction event:", eventType, data.id);
+                const subscriptionId = data.subscriptionId as string | undefined;
+                const customerId = data.customerId as string | undefined;
+
+                if (subscriptionId && customerId) {
+                    const user = await db.user.findFirst({
+                        where: { paddleCustomerId: customerId },
+                    });
+
+                    if (user) {
+                        await db.user.update({
+                            where: { id: user.id },
+                            data: {
+                                paddleSubscriptionId: subscriptionId,
+                                subscriptionStatus: "active",
+                            },
+                        });
+                        console.log("User subscription updated via transaction event");
+                    }
+                }
                 break;
             }
 
