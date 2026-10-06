@@ -1,5 +1,6 @@
-import { auth } from "@/lib/auth";
-import { db } from "@/lib/db";
+import Link from "next/link";
+import { Check } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -7,113 +8,106 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Check } from "lucide-react";
-import { UpgradeButton } from "@/components/billing/upgrade-button";
+import { cn } from "@/lib/utils";
 
-export default async function BillingPage() {
-  const session = await auth();
-  const user = await db.user.findUnique({
-    where: { id: session!.user!.id },
-  });
+const plans = [
+  {
+    name: "Free",
+    price: "$0",
+    period: "forever",
+    description: "Perfect for trying out NextForge",
+    features: [
+      "Up to 100 AI messages/month",
+      "Basic dashboard",
+      "1 project",
+      "Community support",
+      "MIT licensed",
+    ],
+    cta: "Get Started",
+    href: "/register",
+    highlighted: false,
+  },
+  {
+    name: "Pro",
+    price: "$19",
+    period: "per month",
+    description: "For serious builders and teams",
+    features: [
+      "Unlimited AI messages",
+      "Advanced analytics",
+      "Unlimited projects",
+      "Priority support",
+      "Custom AI models",
+      "Team collaboration",
+      "API access",
+    ],
+    cta: "Upgrade to Pro",
+    href: "/billing",
+    highlighted: true,
+  },
+];
 
-  const isPro = user?.subscriptionStatus === "active";
-
+export default function PricingPage() {
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Billing</h1>
-        <p className="text-muted-foreground">
-          Manage your subscription and payment methods.
+    <section className="container py-16 md:py-24">
+      <div className="mx-auto mb-12 max-w-2xl text-center md:mb-16">
+        <h1 className="mb-4 text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">
+          Simple, transparent pricing
+        </h1>
+        <p className="text-base text-muted-foreground md:text-lg">
+          Start free. Upgrade when you need more. Cancel anytime.
         </p>
       </div>
 
-      {isPro ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Current Plan: Pro</CardTitle>
-            <CardDescription>
-              You have access to all premium features.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-bold">$19</span>
-              <span className="text-sm text-muted-foreground">/month</span>
-            </div>
-            <ul className="space-y-2 text-sm">
-              <li className="flex items-center gap-2">
-                <Check className="h-4 w-4 text-primary" />
-                Unlimited AI messages
-              </li>
-              <li className="flex items-center gap-2">
-                <Check className="h-4 w-4 text-primary" />
-                Advanced analytics
-              </li>
-              <li className="flex items-center gap-2">
-                <Check className="h-4 w-4 text-primary" />
-                Priority support
-              </li>
-            </ul>
-            {user?.paddleCurrentPeriodEnd && (
-              <p className="text-sm text-muted-foreground">
-                Renews on{" "}
-                {new Date(user.paddleCurrentPeriodEnd).toLocaleDateString()}
-              </p>
+      <div className="mx-auto grid max-w-5xl gap-6 md:grid-cols-2 md:gap-8">
+        {plans.map((plan) => (
+          <Card
+            key={plan.name}
+            className={cn(
+              "relative overflow-visible",
+              plan.highlighted && "border-primary shadow-lg"
             )}
-          </CardContent>
-        </Card>
-      ) : (
-        <>
-          <Card>
-            <CardHeader>
-              <CardTitle>Current Plan: Free</CardTitle>
-              <CardDescription>
-                You are currently on the Free plan
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-baseline gap-2">
-                <span className="text-3xl font-bold">$0</span>
-                <span className="text-sm text-muted-foreground">/month</span>
+          >
+            {plan.highlighted && (
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary px-3 py-1 text-xs font-medium text-primary-foreground">
+                Most Popular
               </div>
-              <ul className="space-y-2 text-sm">
-                <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-primary" />
-                  Up to 100 AI messages/month
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-primary" />
-                  Basic dashboard
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-primary" />
-                  1 project
-                </li>
+            )}
+            <CardHeader>
+              <CardTitle className="text-2xl">{plan.name}</CardTitle>
+              <CardDescription>{plan.description}</CardDescription>
+              <div className="mt-4">
+                <span className="text-4xl font-bold">{plan.price}</span>
+                <span className="ml-2 text-sm text-muted-foreground">
+                  {plan.period}
+                </span>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <ul className="space-y-3">
+                {plan.features.map((feature) => (
+                  <li key={feature} className="flex items-start gap-3 text-sm">
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                    <span>{feature}</span>
+                  </li>
+                ))}
               </ul>
+              <Button
+                asChild
+                className="w-full"
+                variant={plan.highlighted ? "default" : "outline"}
+                size="lg"
+              >
+                <Link href={plan.href}>{plan.cta}</Link>
+              </Button>
             </CardContent>
           </Card>
+        ))}
+      </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Upgrade to Pro</CardTitle>
-              <CardDescription>
-                Unlock unlimited AI messages and advanced features
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-baseline gap-2">
-                <span className="text-3xl font-bold">$19</span>
-                <span className="text-sm text-muted-foreground">/month</span>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                Includes a 7-day free trial. Cancel anytime.
-              </p>
-              <UpgradeButton className="w-full" />
-            </CardContent>
-          </Card>
-        </>
-      )}
-    </div>
+      <p className="mt-12 text-center text-sm text-muted-foreground">
+        Secure payments powered by Paddle. 7-day free trial on Pro.
+      </p>
+    </section>
   );
 }
