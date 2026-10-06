@@ -72,31 +72,40 @@ export async function POST(req: Request) {
                 break;
             }
 
-            case "transaction.created":
-            case "transaction.completed":
-            case "transaction.updated": {
-                console.log("Transaction event:", eventType, data.id);
-                const subscriptionId = data.subscriptionId as string | undefined;
-                const customerId = data.customerId as string | undefined;
+case "transaction.created":
+case "transaction.completed":
+case "transaction.updated": {
+  console.log("Transaction event:", eventType, "ID:", data.id);
+  const customerId = data.customerId as string | undefined;
+  const subscriptionId = data.subscriptionId as string | undefined;
 
-                if (subscriptionId && customerId) {
-                    const user = await db.user.findFirst({
-                        where: { paddleCustomerId: customerId },
-                    });
+  if (customerId) {
+    const user = await db.user.findFirst({
+      where: { paddleCustomerId: customerId },
+    });
 
-                    if (user) {
-                        await db.user.update({
-                            where: { id: user.id },
-                            data: {
-                                paddleSubscriptionId: subscriptionId,
-                                subscriptionStatus: "active",
-                            },
-                        });
-                        console.log("User subscription updated via transaction event");
-                    }
-                }
-                break;
-            }
+    if (user) {
+      const updateData: Record<string, unknown> = {
+        subscriptionStatus: "active",
+      };
+      
+      if (subscriptionId) {
+        updateData.paddleSubscriptionId = subscriptionId;
+      }
+
+      await db.user.update({
+        where: { id: user.id },
+        data: updateData,
+      });
+      console.log("✅ User subscription updated via transaction event:", user.email);
+    } else {
+      console.log("⚠️ No user found with paddleCustomerId:", customerId);
+    }
+  } else {
+    console.log("⚠️ No customerId in transaction event");
+  }
+  break;
+}
 
             default:
                 console.log("Unhandled event:", eventType);
