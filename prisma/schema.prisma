@@ -18,9 +18,16 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  accounts      Account[]
-  sessions      Session[]
-  chats         Chat[]      // 👈 ADD THIS
+  // 👇 Paddle subscription fields
+  paddleCustomerId       String?   @map("paddle_customer_id")
+  paddleSubscriptionId   String?   @map("paddle_subscription_id")
+  paddlePriceId          String?   @map("paddle_price_id")
+  paddleCurrentPeriodEnd DateTime? @map("paddle_current_period_end")
+  subscriptionStatus     String?   @default("free") @map("subscription_status") // free, active, canceled, past_due
+
+  accounts Account[]
+  sessions Session[]
+  chats    Chat[]
 }
 
 model Account {
